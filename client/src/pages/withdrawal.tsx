@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare, FileText, CheckCircle2, Mail } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare, FileText, CheckCircle2, Mail, Hash, ArrowLeftRight, DollarSign, Share2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -351,67 +351,109 @@ export default function WithdrawalPage() {
       )}
 
       <Dialog open={!!receiptWithdrawal} onOpenChange={(open) => !open && setReceiptWithdrawal(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              Withdrawal Receipt
-            </DialogTitle>
-            <DialogDescription>
-              Your withdrawal has been approved and processed
-            </DialogDescription>
-          </DialogHeader>
-          
+        <DialogContent className="max-w-md bg-[#0a0a0a] border-[#262626]">
           {receiptWithdrawal && (
-            <div className="space-y-4">
-              <div className="bg-muted rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Invoice Number</span>
-                  <span className="font-mono font-semibold text-primary">{receiptWithdrawal.invoiceNumber}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Amount</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    ${parseFloat(receiptWithdrawal.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Payment Method</span>
-                  <span className="capitalize">
-                    {paymentMethods.find(m => m.id === receiptWithdrawal.method)?.name || receiptWithdrawal.method}
-                  </span>
-                </div>
-                <Separator />
-                <div>
-                  <span className="text-muted-foreground text-sm block mb-1">Destination Address</span>
-                  <span className="font-mono text-sm text-primary break-all">{receiptWithdrawal.walletAddress}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Processed Date</span>
-                  <span>
-                    {receiptWithdrawal.processedAt 
-                      ? format(new Date(receiptWithdrawal.processedAt), "MMM dd, yyyy HH:mm")
-                      : "-"
-                    }
-                  </span>
-                </div>
-                {receiptWithdrawal.emailSentAt && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span>Receipt sent to your email on {format(new Date(receiptWithdrawal.emailSentAt), "MMM dd, yyyy HH:mm")}</span>
-                    </div>
-                  </>
-                )}
+            <div className="space-y-6">
+              <div className="text-muted-foreground">
+                {receiptWithdrawal.processedAt 
+                  ? format(new Date(receiptWithdrawal.processedAt), "EEEE, MMMM d")
+                  : format(new Date(), "EEEE, MMMM d")
+                }
               </div>
               
-              <p className="text-xs text-muted-foreground text-center">
-                Please allow 1-24 hours for the transaction to be confirmed on the blockchain.
-              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md bg-red-600/20 border border-red-600/50 flex items-center justify-center">
+                    <Wallet className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">Withdrawal</div>
+                    <div className="text-sm text-muted-foreground">
+                      {receiptWithdrawal.processedAt 
+                        ? format(new Date(receiptWithdrawal.processedAt), "h:mm a · MMM d, yyyy")
+                        : "-"
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xl font-bold text-red-500">
+                  -${parseFloat(receiptWithdrawal.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+
+              <Separator className="bg-[#262626]" />
+
+              <div className="space-y-5">
+                <div className="flex items-start gap-3">
+                  <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-red-500">Code</div>
+                    <div className="text-white font-mono">{receiptWithdrawal.invoiceNumber || "-"}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <ArrowLeftRight className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-red-500">Origin</div>
+                    <div className="text-white">Earnings</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Wallet className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-red-500">Wallet</div>
+                    <div className="text-white font-mono text-sm break-all">{receiptWithdrawal.walletAddress}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-red-500">Currency</div>
+                    <div className="text-white">
+                      {receiptWithdrawal.method === "usdt_bep20" || receiptWithdrawal.method === "usdt_trc20" 
+                        ? "USDT" 
+                        : receiptWithdrawal.method === "bitcoin" 
+                          ? "BTC" 
+                          : receiptWithdrawal.method === "ethereum" 
+                            ? "ETH" 
+                            : "USD"
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Share2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-red-500">Network</div>
+                    <div className="text-white">
+                      {receiptWithdrawal.method === "usdt_bep20" 
+                        ? "BinanceSmartChain" 
+                        : receiptWithdrawal.method === "usdt_trc20" 
+                          ? "Tron" 
+                          : receiptWithdrawal.method === "bitcoin" 
+                            ? "Bitcoin" 
+                            : receiptWithdrawal.method === "ethereum" 
+                              ? "Ethereum" 
+                              : "Bank Network"
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {receiptWithdrawal.emailSentAt && (
+                <>
+                  <Separator className="bg-[#262626]" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>Receipt sent to your email</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </DialogContent>

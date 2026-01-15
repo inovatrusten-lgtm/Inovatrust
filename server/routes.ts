@@ -8,6 +8,15 @@ import { sendWithdrawalReceipt } from "./email";
 
 const SALT_ROUNDS = 10;
 
+const STAKING_PLANS = [
+  { periodDays: "1", roiPercent: "3.80", label: "1 Day" },
+  { periodDays: "7", roiPercent: "5.30", label: "7 Days" },
+  { periodDays: "14", roiPercent: "8.50", label: "14 Days" },
+  { periodDays: "21", roiPercent: "12.00", label: "21 Days" },
+  { periodDays: "100", roiPercent: "45.00", label: "100 Days" },
+  { periodDays: "365", roiPercent: "120.00", label: "365 Days" },
+];
+
 function generateInvoiceNumber(): string {
   const date = new Date();
   const year = date.getFullYear();
@@ -465,7 +474,7 @@ export async function registerRoutes(
   app.patch("/api/admin/users/:id", requireAdmin, async (req, res) => {
     try {
       const userId = req.params.id;
-      const { balance, totalInvested, totalEarnings } = req.body;
+      const { balance, totalInvested, totalEarnings, stakingEnabled } = req.body;
       
       const user = await storage.getUser(userId);
       if (!user) {
@@ -476,9 +485,175 @@ export async function registerRoutes(
       if (balance !== undefined) updates.balance = balance;
       if (totalInvested !== undefined) updates.totalInvested = totalInvested;
       if (totalEarnings !== undefined) updates.totalEarnings = totalEarnings;
+      if (stakingEnabled !== undefined) updates.stakingEnabled = stakingEnabled;
 
       const updated = await storage.updateUser(userId, updates);
       res.json(updated);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/staking/plans", requireAuth, async (req, res) => {
+    res.json(STAKING_PLANS);
+  });
+
+  app.get("/api/staking/status", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    res.json({
+      stakingEnabled: user.stakingEnabled || false,
+      connectedWallet: user.connectedWallet || null,
+    });
+  });
+
+  app.post("/api/staking/connect-wallet", requireAuth, async (req, res) => {
+    try {
+      const { walletAddress } = req.body;
+      const userId = req.session.userId!;
+      
+      await storage.updateUser(userId, { connectedWallet: walletAddress });
+      res.json({ success: true, walletAddress });
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/stakes", requireAuth, async (req, res) => {
+    const stakes = await storage.getStakesByUserId(req.session.userId!);
+    res.json(stakes);
+  });
+
+  app.post("/api/stakes", requireAuth, async (req, res) => {
+    try {
+      const { amount, currency, network, periodDays, walletAddress, txHash } = req.body;
+      const userId = req.session.userId!;
+      
+      const user = await storage.getUser(userId);
+      if (!user?.stakingEnabled) {
+        return res.status(403).send("Staking not enabled for your account. Please contact support via chat.");
+      }
+
+      const plan = STAKING_PLANS.find(p => p.periodDays === periodDays);
+      if (!plan) {
+        return res.status(400).send("Invalid staking period");
+      }
+
+      const amountNum = parseFloat(amount);
+      const roiPercent = parseFloat(plan.roiPercent);
+      const expectedReturn = (amountNum * (1 + roiPercent / 100)).toFixed(2);
+
+      const stake = await storage.createStake({
+        userId,
+        amount,
+        currency,
+        network,
+        periodDays,
+        roiPercent: plan.roiPercent,
+        expectedReturn,
+        walletAddress,
+        txHash,
+      });
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + parseInt(periodDays));
+      
+      await storage.updateStake(stake.id, {
+        status: "active",
+        startDate,
+        endDate,
+      });
+
+      res.json(stake);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/staking/receiving-addresses", requireAuth, async (req, res) => {
+    const bep20 = await storage.getPlatformSetting("receiving_wallet_bep20");
+    const erc20 = await storage.getPlatformSetting("receiving_wallet_erc20");
+    res.json({
+      bep20: bep20?.value || null,
+      erc20: erc20?.value || null,
+    });
+  });
+
+  app.get("/api/admin/stakes", requireAdmin, async (req, res) => {
+    const allStakes = await storage.getAllStakes();
+    const users = await storage.getAllUsers();
+    
+    const stakesWithUsers = allStakes.map((s) => ({
+      ...s,
+      user: users.find((u) => u.id === s.userId),
+    }));
+    
+    res.json(stakesWithUsers);
+  });
+
+  app.patch("/api/admin/stakes/:id", requireAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const stakeId = req.params.id;
+      
+      const updated = await storage.updateStake(stakeId, { status });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
+    const settings = await storage.getAllPlatformSettings();
+    res.json(settings);
+  });
+
+  app.post("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const { key, value } = req.body;
+      const setting = await storage.setPlatformSetting(key, value);
+      res.json(setting);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/admin/users/:id/enable-staking", requireAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { enabled, conversationId } = req.body;
+      
+      await storage.updateUser(userId, { stakingEnabled: enabled });
+      
+      if (conversationId) {
+        const message = enabled 
+          ? "Your InovaTrust Loop staking access has been enabled! You can now stake USDT/USDC and earn returns."
+          : "Your InovaTrust Loop staking access has been disabled.";
+        
+        await storage.createMessage({
+          conversationId,
+          senderId: "system",
+          senderType: "admin",
+          message,
+        });
+
+        const room = rooms.get(conversationId);
+        if (room) {
+          const messages = await storage.getMessagesByConversationId(conversationId);
+          const lastMsg = messages[messages.length - 1];
+          const broadcast = JSON.stringify({ type: "message", message: lastMsg });
+          room.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(broadcast);
+            }
+          });
+        }
+      }
+      
+      res.json({ success: true, enabled });
     } catch (error: any) {
       res.status(500).send(error.message);
     }

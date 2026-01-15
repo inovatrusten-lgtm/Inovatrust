@@ -1,16 +1,412 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import session from "express-session";
+import bcrypt from "bcrypt";
 import { storage } from "./storage";
+
+const SALT_ROUNDS = 10;
+
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+  }
+}
+
+const rooms = new Map<string, Set<WebSocket>>();
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  wss.on("connection", (ws) => {
+    let currentRoom: string | null = null;
+
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        if (message.type === "join") {
+          const conversationId = message.conversationId;
+          if (currentRoom) {
+            rooms.get(currentRoom)?.delete(ws);
+          }
+          currentRoom = conversationId;
+          if (!rooms.has(conversationId)) {
+            rooms.set(conversationId, new Set());
+          }
+          rooms.get(conversationId)?.add(ws);
+        }
+      } catch (error) {
+        console.error("WebSocket message error:", error);
+      }
+    });
+
+    ws.on("close", () => {
+      if (currentRoom) {
+        rooms.get(currentRoom)?.delete(ws);
+      }
+    });
+  });
+
+  const requireAuth = (req: Request, res: Response, next: Function) => {
+    if (!req.session.userId) {
+      return res.status(401).send("Unauthorized");
+    }
+    next();
+  };
+
+  const requireAdmin = async (req: Request, res: Response, next: Function) => {
+    if (!req.session.userId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user?.isAdmin) {
+      return res.status(403).send("Forbidden");
+    }
+    next();
+  };
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password, fullName, email } = req.body;
+      
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).send("Username already exists");
+      }
+
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      const user = await storage.createUser({ username, password: hashedPassword, fullName, email });
+      req.session.userId = user.id;
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).send("Invalid credentials");
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).send("Invalid credentials");
+      }
+
+      req.session.userId = user.id;
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).send("Not authenticated");
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).send("User not found");
+    }
+    res.json(user);
+  });
+
+  app.get("/api/investments", requireAuth, async (req, res) => {
+    const investments = await storage.getInvestmentsByUserId(req.session.userId!);
+    res.json(investments);
+  });
+
+  app.post("/api/investments", requireAuth, async (req, res) => {
+    try {
+      const { packageName, amount, dailyReturn, duration } = req.body;
+      const userId = req.session.userId!;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      const balance = parseFloat(user.balance || "0");
+      const investAmount = parseFloat(amount);
+
+      if (investAmount > balance) {
+        return res.status(400).send("Insufficient balance");
+      }
+
+      const investment = await storage.createInvestment({
+        userId,
+        packageName,
+        amount,
+        dailyReturn,
+        duration,
+      });
+
+      await storage.updateUser(userId, {
+        balance: (balance - investAmount).toFixed(2),
+        totalInvested: (parseFloat(user.totalInvested || "0") + investAmount).toFixed(2),
+      });
+
+      await storage.createTransaction({
+        userId,
+        type: "investment",
+        amount,
+        description: `Investment in ${packageName} package`,
+      });
+
+      res.json(investment);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/transactions", requireAuth, async (req, res) => {
+    const transactions = await storage.getTransactionsByUserId(req.session.userId!);
+    res.json(transactions);
+  });
+
+  app.get("/api/withdrawals", requireAuth, async (req, res) => {
+    const withdrawals = await storage.getWithdrawalsByUserId(req.session.userId!);
+    res.json(withdrawals);
+  });
+
+  app.post("/api/withdrawals", requireAuth, async (req, res) => {
+    try {
+      const { amount, method, walletAddress } = req.body;
+      const userId = req.session.userId!;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      const balance = parseFloat(user.balance || "0");
+      const withdrawAmount = parseFloat(amount);
+
+      if (withdrawAmount > balance) {
+        return res.status(400).send("Insufficient balance");
+      }
+
+      if (withdrawAmount < 5) {
+        return res.status(400).send("Minimum withdrawal is $5");
+      }
+
+      const conversation = await storage.createConversation({
+        userId,
+        subject: `Withdrawal Request - $${withdrawAmount}`,
+      });
+
+      await storage.createMessage({
+        conversationId: conversation.id,
+        senderId: "system",
+        senderType: "admin",
+        message: `Hello! Your withdrawal request for $${withdrawAmount.toFixed(2)} via ${method} has been submitted. An admin will review your request shortly.`,
+      });
+
+      const withdrawal = await storage.createWithdrawal({
+        userId,
+        amount,
+        method,
+        walletAddress,
+        conversationId: conversation.id,
+      });
+
+      res.json(withdrawal);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/conversations", requireAuth, async (req, res) => {
+    const conversations = await storage.getConversationsByUserId(req.session.userId!);
+    res.json(conversations);
+  });
+
+  app.post("/api/conversations", requireAuth, async (req, res) => {
+    try {
+      const { subject } = req.body;
+      const userId = req.session.userId!;
+      
+      const conversation = await storage.createConversation({ userId, subject });
+      res.json(conversation);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/chat/:conversationId/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const conversationId = req.params.conversationId;
+      
+      const user = await storage.getUser(userId);
+      const conversation = await storage.getConversation(conversationId);
+      
+      if (!conversation) {
+        return res.status(404).send("Conversation not found");
+      }
+      
+      if (conversation.userId !== userId && !user?.isAdmin) {
+        return res.status(403).send("Access denied");
+      }
+      
+      const messages = await storage.getMessagesByConversationId(conversationId);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/chat/:conversationId/messages", requireAuth, async (req, res) => {
+    try {
+      const { message } = req.body;
+      const userId = req.session.userId!;
+      const conversationId = req.params.conversationId;
+
+      const user = await storage.getUser(userId);
+      const conversation = await storage.getConversation(conversationId);
+      
+      if (!conversation) {
+        return res.status(404).send("Conversation not found");
+      }
+      
+      if (conversation.userId !== userId && !user?.isAdmin) {
+        return res.status(403).send("Access denied");
+      }
+
+      const senderType = user?.isAdmin ? "admin" : "user";
+
+      const msg = await storage.createMessage({
+        conversationId,
+        senderId: userId,
+        senderType,
+        message,
+      });
+
+      const room = rooms.get(conversationId);
+      if (room) {
+        const broadcast = JSON.stringify({ type: "message", message: msg });
+        room.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(broadcast);
+          }
+        });
+      }
+
+      res.json(msg);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/admin/withdrawals", requireAdmin, async (req, res) => {
+    const allWithdrawals = await storage.getAllWithdrawals();
+    const users = await storage.getAllUsers();
+    
+    const withdrawalsWithUsers = allWithdrawals.map((w) => ({
+      ...w,
+      user: users.find((u) => u.id === w.userId),
+    }));
+    
+    res.json(withdrawalsWithUsers);
+  });
+
+  app.patch("/api/admin/withdrawals/:id", requireAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const withdrawalId = req.params.id;
+
+      const allWithdrawals = await storage.getAllWithdrawals();
+      const withdrawal = allWithdrawals.find((w) => w.id === withdrawalId);
+      
+      if (!withdrawal) {
+        return res.status(404).send("Withdrawal not found");
+      }
+
+      if (status === "approved") {
+        const user = await storage.getUser(withdrawal.userId);
+        if (user) {
+          const balance = parseFloat(user.balance || "0");
+          const amount = parseFloat(withdrawal.amount);
+          await storage.updateUser(withdrawal.userId, {
+            balance: (balance - amount).toFixed(2),
+          });
+
+          await storage.createTransaction({
+            userId: withdrawal.userId,
+            type: "withdrawal",
+            amount: withdrawal.amount,
+            description: `Withdrawal via ${withdrawal.method} - Approved`,
+          });
+        }
+      }
+
+      const updated = await storage.updateWithdrawal(withdrawalId, {
+        status,
+        processedAt: new Date(),
+      });
+
+      if (withdrawal.conversationId) {
+        const statusMessage = status === "approved" 
+          ? `Great news! Your withdrawal of $${parseFloat(withdrawal.amount).toFixed(2)} has been approved and is being processed.`
+          : `We're sorry, but your withdrawal request has been rejected. Please contact support for more information.`;
+        
+        await storage.createMessage({
+          conversationId: withdrawal.conversationId,
+          senderId: "system",
+          senderType: "admin",
+          message: statusMessage,
+        });
+
+        const room = rooms.get(withdrawal.conversationId);
+        if (room) {
+          const msg = await storage.getMessagesByConversationId(withdrawal.conversationId);
+          const lastMsg = msg[msg.length - 1];
+          const broadcast = JSON.stringify({ type: "message", message: lastMsg });
+          room.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(broadcast);
+            }
+          });
+        }
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.get("/api/admin/conversations", requireAdmin, async (req, res) => {
+    const allConversations = await storage.getAllConversations();
+    const users = await storage.getAllUsers();
+    
+    const conversationsWithUsers = allConversations.map((c) => ({
+      ...c,
+      user: users.find((u) => u.id === c.userId),
+    }));
+    
+    res.json(conversationsWithUsers);
+  });
+
+  app.get("/api/admin/users", requireAdmin, async (req, res) => {
+    const users = await storage.getAllUsers();
+    res.json(users);
+  });
 
   return httpServer;
 }

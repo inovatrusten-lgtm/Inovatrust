@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock } from "lucide-react";
+import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock, Edit2, DollarSign, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +31,10 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editBalance, setEditBalance] = useState("");
+  const [editTotalInvested, setEditTotalInvested] = useState("");
+  const [editTotalEarnings, setEditTotalEarnings] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { user, isAdmin } = useAuth();
@@ -140,6 +146,38 @@ export default function AdminPage() {
     },
   });
 
+  const updateUser = useMutation({
+    mutationFn: async ({ id, balance, totalInvested, totalEarnings }: { id: string; balance: string; totalInvested: string; totalEarnings: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${id}`, { balance, totalInvested, totalEarnings });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "User Updated", description: "User balance has been updated successfully." });
+      setEditingUser(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const openEditUser = (u: User) => {
+    setEditingUser(u);
+    setEditBalance(u.balance || "0.00");
+    setEditTotalInvested(u.totalInvested || "0.00");
+    setEditTotalEarnings(u.totalEarnings || "0.00");
+  };
+
+  const handleSaveUser = () => {
+    if (!editingUser) return;
+    updateUser.mutate({
+      id: editingUser.id,
+      balance: editBalance,
+      totalInvested: editTotalInvested,
+      totalEarnings: editTotalEarnings,
+    });
+  };
+
   const pendingWithdrawals = withdrawals?.filter((w) => w.status === "pending") || [];
   const openConversations = conversations?.filter((c) => c.status === "open") || [];
 
@@ -225,6 +263,10 @@ export default function AdminPage() {
                 {openConversations.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="users" data-testid="tab-users">
+            <Users className="h-4 w-4 mr-2" />
+            Manage Users
           </TabsTrigger>
         </TabsList>
 
@@ -494,7 +536,140 @@ export default function AdminPage() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage user balances and account details</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Total Invested</TableHead>
+                    <TableHead>Total Earnings</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users?.filter(u => !u.isAdmin).map((u) => (
+                    <TableRow key={u.id} data-testid={`user-row-${u.id}`}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs">
+                              {u.fullName?.slice(0, 2).toUpperCase() || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{u.fullName}</p>
+                            <p className="text-xs text-muted-foreground">{u.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold text-primary">
+                        ${parseFloat(u.balance || "0").toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        ${parseFloat(u.totalInvested || "0").toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-green-600">
+                        ${parseFloat(u.totalEarnings || "0").toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">User</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditUser(u)}
+                          data-testid={`button-edit-user-${u.id}`}
+                        >
+                          <Edit2 className="h-4 w-4 mr-1" />
+                          Edit Balance
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {users?.filter(u => !u.isAdmin).length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <p className="text-muted-foreground">No users registered yet</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Edit User Balance
+            </DialogTitle>
+            <DialogDescription>
+              Update balance for {editingUser?.fullName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="balance">Available Balance ($)</Label>
+              <Input
+                id="balance"
+                type="number"
+                step="0.01"
+                value={editBalance}
+                onChange={(e) => setEditBalance(e.target.value)}
+                data-testid="input-edit-balance"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="totalInvested">Total Invested ($)</Label>
+              <Input
+                id="totalInvested"
+                type="number"
+                step="0.01"
+                value={editTotalInvested}
+                onChange={(e) => setEditTotalInvested(e.target.value)}
+                data-testid="input-edit-total-invested"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="totalEarnings">Total Earnings ($)</Label>
+              <Input
+                id="totalEarnings"
+                type="number"
+                step="0.01"
+                value={editTotalEarnings}
+                onChange={(e) => setEditTotalEarnings(e.target.value)}
+                data-testid="input-edit-total-earnings"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveUser} disabled={updateUser.isPending} data-testid="button-save-user">
+              {updateUser.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -408,5 +408,27 @@ export async function registerRoutes(
     res.json(users);
   });
 
+  app.patch("/api/admin/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { balance, totalInvested, totalEarnings } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      const updates: any = {};
+      if (balance !== undefined) updates.balance = balance;
+      if (totalInvested !== undefined) updates.totalInvested = totalInvested;
+      if (totalEarnings !== undefined) updates.totalEarnings = totalEarnings;
+
+      const updated = await storage.updateUser(userId, updates);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
   return httpServer;
 }

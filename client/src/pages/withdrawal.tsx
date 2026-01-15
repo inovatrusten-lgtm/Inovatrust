@@ -28,9 +28,10 @@ const withdrawalSchema = z.object({
 type WithdrawalForm = z.infer<typeof withdrawalSchema>;
 
 const paymentMethods = [
+  { id: "usdt_bep20", name: "USDT (BEP20)", icon: Wallet },
   { id: "bitcoin", name: "Bitcoin (BTC)", icon: Bitcoin },
   { id: "ethereum", name: "Ethereum (ETH)", icon: Wallet },
-  { id: "usdt", name: "USDT (TRC20)", icon: CreditCard },
+  { id: "usdt_trc20", name: "USDT (TRC20)", icon: CreditCard },
   { id: "bank", name: "Bank Transfer", icon: CreditCard },
 ];
 

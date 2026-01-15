@@ -1,10 +1,18 @@
-import sgMail from "@sendgrid/mail";
+import Mailgun from "mailgun.js";
+import formData from "form-data";
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = "inovatrust.en@gmail.com";
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "sandbox.mailgun.org";
+const FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL || "noreply@inovatrust.net";
 
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY);
+let mailgun: any = null;
+
+if (MAILGUN_API_KEY) {
+  const mg = new Mailgun(formData);
+  mailgun = mg.client({
+    username: "api",
+    key: MAILGUN_API_KEY,
+  });
 }
 
 interface WithdrawalReceiptData {
@@ -18,8 +26,8 @@ interface WithdrawalReceiptData {
 }
 
 export async function sendWithdrawalReceipt(data: WithdrawalReceiptData): Promise<boolean> {
-  if (!SENDGRID_API_KEY) {
-    console.log("SendGrid API key not configured, skipping email");
+  if (!mailgun || !MAILGUN_API_KEY) {
+    console.log("Mailgun API key not configured, skipping email");
     return false;
   }
 
@@ -137,19 +145,17 @@ export async function sendWithdrawalReceipt(data: WithdrawalReceiptData): Promis
 </html>
 `;
 
-  const msg = {
-    to: data.userEmail,
-    from: FROM_EMAIL,
-    subject: `Withdrawal Receipt - ${data.invoiceNumber}`,
-    html: emailHtml,
-  };
-
   try {
-    await sgMail.send(msg);
+    await mailgun.messages.create(MAILGUN_DOMAIN, {
+      from: FROM_EMAIL,
+      to: data.userEmail,
+      subject: `Withdrawal Receipt - ${data.invoiceNumber}`,
+      html: emailHtml,
+    });
     console.log(`Withdrawal receipt sent to ${data.userEmail}`);
     return true;
   } catch (error: any) {
-    console.error("Failed to send email:", error?.response?.body || error.message);
+    console.error("Failed to send email:", error?.message || error);
     return false;
   }
 }

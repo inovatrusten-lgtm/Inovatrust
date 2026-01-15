@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import session from "express-session";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
+import { sendWithdrawalReceipt } from "./email";
 
 const SALT_ROUNDS = 10;
 
@@ -368,14 +369,36 @@ export async function registerRoutes(
         }
       }
 
+      const processedAt = new Date();
       const updated = await storage.updateWithdrawal(withdrawalId, {
         status,
-        processedAt: new Date(),
+        processedAt,
         ...(invoiceNumber && { 
           invoiceNumber, 
           invoiceGeneratedAt: new Date() 
         }),
       });
+
+      if (status === "approved" && invoiceNumber) {
+        const user = await storage.getUser(withdrawal.userId);
+        if (user) {
+          const emailSent = await sendWithdrawalReceipt({
+            userEmail: user.email,
+            userName: user.fullName,
+            invoiceNumber,
+            amount: withdrawal.amount,
+            method: withdrawal.method,
+            walletAddress: withdrawal.walletAddress,
+            processedAt,
+          });
+          
+          if (emailSent) {
+            await storage.updateWithdrawal(withdrawalId, {
+              emailSentAt: new Date(),
+            });
+          }
+        }
+      }
 
       if (withdrawal.conversationId) {
         const statusMessage = status === "approved" 

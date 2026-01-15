@@ -63,7 +63,20 @@ The server serves both the API and static frontend assets in production. Develop
 - TypeScript with path aliases (`@/` for client, `@shared/` for shared code)
 - PostCSS with Tailwind and Autoprefixer
 
+### Email Service
+- **Provider**: SendGrid for transactional emails
+- **Configuration**: `server/email.ts` contains email sending logic
+- **Sender Email**: inovatrust.en@gmail.com
+- **Functionality**: Sends withdrawal receipt emails when admin approves withdrawals
+
+### Invoice Generation
+- Invoices are automatically generated when withdrawals are approved
+- Invoice number format: `INV-YYYYMMDD-XXXXXX` (date + random alphanumeric)
+- Invoice data stored in withdrawals table (invoiceNumber, invoiceGeneratedAt)
+- Users can view receipts from the Withdrawal page
+
 ### Environment Requirements
 - `DATABASE_URL`: PostgreSQL connection string (required)
 - `SESSION_SECRET`: Secret key for session encryption (defaults to fallback in development)
+- `SENDGRID_API_KEY`: SendGrid API key for email sending (required for email receipts)
 - `NODE_ENV`: Controls production/development behavior

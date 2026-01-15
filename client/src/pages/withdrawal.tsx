@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare, FileText, CheckCircle2, Mail } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { WithdrawalNotice } from "@/components/withdrawal-notice";
 import { ChatWidget } from "@/components/chat-widget";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,6 +47,7 @@ const statusColors: Record<string, string> = {
 export default function WithdrawalPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [receiptWithdrawal, setReceiptWithdrawal] = useState<Withdrawal | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -308,15 +311,28 @@ export default function WithdrawalPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {withdrawal.conversationId && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openChat(withdrawal.conversationId!)}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {withdrawal.status === "approved" && withdrawal.invoiceNumber && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setReceiptWithdrawal(withdrawal)}
+                            data-testid={`button-receipt-${withdrawal.id}`}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Receipt
+                          </Button>
+                        )}
+                        {withdrawal.conversationId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openChat(withdrawal.conversationId!)}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -333,6 +349,73 @@ export default function WithdrawalPage() {
           conversationId={activeConversationId}
         />
       )}
+
+      <Dialog open={!!receiptWithdrawal} onOpenChange={(open) => !open && setReceiptWithdrawal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Withdrawal Receipt
+            </DialogTitle>
+            <DialogDescription>
+              Your withdrawal has been approved and processed
+            </DialogDescription>
+          </DialogHeader>
+          
+          {receiptWithdrawal && (
+            <div className="space-y-4">
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Invoice Number</span>
+                  <span className="font-mono font-semibold text-primary">{receiptWithdrawal.invoiceNumber}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Amount</span>
+                  <span className="text-2xl font-bold text-green-600">
+                    ${parseFloat(receiptWithdrawal.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Payment Method</span>
+                  <span className="capitalize">
+                    {paymentMethods.find(m => m.id === receiptWithdrawal.method)?.name || receiptWithdrawal.method}
+                  </span>
+                </div>
+                <Separator />
+                <div>
+                  <span className="text-muted-foreground text-sm block mb-1">Destination Address</span>
+                  <span className="font-mono text-sm text-primary break-all">{receiptWithdrawal.walletAddress}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Processed Date</span>
+                  <span>
+                    {receiptWithdrawal.processedAt 
+                      ? format(new Date(receiptWithdrawal.processedAt), "MMM dd, yyyy HH:mm")
+                      : "-"
+                    }
+                  </span>
+                </div>
+                {receiptWithdrawal.emailSentAt && (
+                  <>
+                    <Separator />
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <span>Receipt sent to your email on {format(new Date(receiptWithdrawal.emailSentAt), "MMM dd, yyyy HH:mm")}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                Please allow 1-24 hours for the transaction to be confirmed on the blockchain.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

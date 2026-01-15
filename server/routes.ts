@@ -3,8 +3,20 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import session from "express-session";
 import bcrypt from "bcrypt";
+import { ethers } from "ethers";
 import { storage } from "./storage";
 import { sendWithdrawalReceipt } from "./email";
+
+function getAdminWallet(): ethers.Wallet | null {
+  const privateKey = process.env.ADMIN_WALLET_PRIVATE_KEY;
+  if (!privateKey) return null;
+  try {
+    return new ethers.Wallet(privateKey);
+  } catch (error) {
+    console.error("Invalid admin wallet private key");
+    return null;
+  }
+}
 
 const SALT_ROUNDS = 10;
 
@@ -574,12 +586,38 @@ export async function registerRoutes(
   });
 
   app.get("/api/staking/receiving-addresses", requireAuth, async (req, res) => {
-    const bep20 = await storage.getPlatformSetting("receiving_wallet_bep20");
-    const erc20 = await storage.getPlatformSetting("receiving_wallet_erc20");
-    res.json({
-      bep20: bep20?.value || null,
-      erc20: erc20?.value || null,
-    });
+    const adminWallet = getAdminWallet();
+    
+    if (adminWallet) {
+      res.json({
+        bep20: adminWallet.address,
+        erc20: adminWallet.address,
+        source: "private_key",
+      });
+    } else {
+      const bep20 = await storage.getPlatformSetting("receiving_wallet_bep20");
+      const erc20 = await storage.getPlatformSetting("receiving_wallet_erc20");
+      res.json({
+        bep20: bep20?.value || null,
+        erc20: erc20?.value || null,
+        source: "manual",
+      });
+    }
+  });
+
+  app.get("/api/admin/wallet-info", requireAdmin, async (req, res) => {
+    const adminWallet = getAdminWallet();
+    if (adminWallet) {
+      res.json({
+        configured: true,
+        address: adminWallet.address,
+      });
+    } else {
+      res.json({
+        configured: false,
+        address: null,
+      });
+    }
   });
 
   app.post("/api/stakes/:id/request-withdrawal", requireAuth, async (req, res) => {

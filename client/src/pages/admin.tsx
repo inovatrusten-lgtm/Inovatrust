@@ -72,6 +72,11 @@ export default function AdminPage() {
     enabled: isAdmin,
   });
 
+  const { data: walletInfo } = useQuery<{ configured: boolean; address: string | null }>({
+    queryKey: ["/api/admin/wallet-info"],
+    enabled: isAdmin,
+  });
+
   useEffect(() => {
     if (settings) {
       const bep20 = settings.find(s => s.key === "receiving_wallet_bep20");
@@ -850,61 +855,93 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                Receiving Wallet Addresses
-              </CardTitle>
-              <CardDescription>
-                Configure wallet addresses where staking payments will be received.
-                Users will send their stake payments to these addresses.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="bep20">BEP20 Receiving Address (BNB Smart Chain)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="bep20"
-                    placeholder="0x..."
-                    value={bep20Address}
-                    onChange={(e) => setBep20Address(e.target.value)}
-                    className="font-mono"
-                    data-testid="input-bep20-address"
-                  />
-                  <Button 
-                    onClick={() => saveSetting.mutate({ key: "receiving_wallet_bep20", value: bep20Address })}
-                    disabled={saveSetting.isPending}
-                    data-testid="button-save-bep20"
-                  >
-                    {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+          <div className="space-y-6">
+            {walletInfo?.configured && (
+              <Card className="border-accent/50 bg-accent/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-accent">
+                    <CheckCircle className="h-5 w-5" />
+                    Private Key Wallet Configured
+                  </CardTitle>
+                  <CardDescription>
+                    Receiving address is automatically derived from ADMIN_WALLET_PRIVATE_KEY secret.
+                    This address will be used for both BEP20 and ERC20 networks.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label>Derived Receiving Address</Label>
+                    <div className="p-3 bg-background rounded-md border font-mono text-sm break-all" data-testid="text-derived-address">
+                      {walletInfo.address}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      All staking payments will be sent to this address on both BNB Chain and Ethereum.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="erc20">ERC20 Receiving Address (Ethereum)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="erc20"
-                    placeholder="0x..."
-                    value={erc20Address}
-                    onChange={(e) => setErc20Address(e.target.value)}
-                    className="font-mono"
-                    data-testid="input-erc20-address"
-                  />
-                  <Button 
-                    onClick={() => saveSetting.mutate({ key: "receiving_wallet_erc20", value: erc20Address })}
-                    disabled={saveSetting.isPending}
-                    data-testid="button-save-erc20"
-                  >
-                    {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {!walletInfo?.configured && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    Receiving Wallet Addresses
+                  </CardTitle>
+                  <CardDescription>
+                    Configure wallet addresses where staking payments will be received.
+                    Users will send their stake payments to these addresses.
+                    <br /><br />
+                    <strong>Tip:</strong> Add ADMIN_WALLET_PRIVATE_KEY to secrets to auto-derive the address.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="bep20">BEP20 Receiving Address (BNB Smart Chain)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="bep20"
+                        placeholder="0x..."
+                        value={bep20Address}
+                        onChange={(e) => setBep20Address(e.target.value)}
+                        className="font-mono"
+                        data-testid="input-bep20-address"
+                      />
+                      <Button 
+                        onClick={() => saveSetting.mutate({ key: "receiving_wallet_bep20", value: bep20Address })}
+                        disabled={saveSetting.isPending}
+                        data-testid="button-save-bep20"
+                      >
+                        {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="erc20">ERC20 Receiving Address (Ethereum)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="erc20"
+                        placeholder="0x..."
+                        value={erc20Address}
+                        onChange={(e) => setErc20Address(e.target.value)}
+                        className="font-mono"
+                        data-testid="input-erc20-address"
+                      />
+                      <Button 
+                        onClick={() => saveSetting.mutate({ key: "receiving_wallet_erc20", value: erc20Address })}
+                        disabled={saveSetting.isPending}
+                        data-testid="button-save-erc20"
+                      >
+                        {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 

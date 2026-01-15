@@ -205,10 +205,11 @@ export default function StakingPage() {
 
     setIsConnecting(true);
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
+      const accounts = await window.ethereum.request({ 
+        method: "eth_requestAccounts" 
+      }) as string[];
       
-      if (accounts.length > 0) {
+      if (accounts && accounts.length > 0) {
         const address = accounts[0];
         setWalletAddress(address);
         await connectWalletMutation.mutateAsync(address);
@@ -218,12 +219,19 @@ export default function StakingPage() {
         });
       }
     } catch (error: any) {
-      console.error("Wallet connection error:", error);
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect wallet",
-        variant: "destructive",
-      });
+      if (error.code === 4001) {
+        toast({
+          title: "Connection Cancelled",
+          description: "You cancelled the wallet connection request.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: error.message || "Failed to connect wallet",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsConnecting(false);
     }

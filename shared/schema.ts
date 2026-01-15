@@ -13,6 +13,8 @@ export const users = pgTable("users", {
   totalInvested: decimal("total_invested", { precision: 15, scale: 2 }).default("0.00"),
   totalEarnings: decimal("total_earnings", { precision: 15, scale: 2 }).default("0.00"),
   isAdmin: boolean("is_admin").default(false),
+  stakingEnabled: boolean("staking_enabled").default(false),
+  connectedWallet: text("connected_wallet"),
 });
 
 export const investments = pgTable("investments", {
@@ -71,6 +73,30 @@ export const conversations = pgTable("conversations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const stakes = pgTable("stakes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  currency: text("currency").notNull(),
+  network: text("network").notNull(),
+  periodDays: text("period_days").notNull(),
+  roiPercent: decimal("roi_percent", { precision: 5, scale: 2 }).notNull(),
+  expectedReturn: decimal("expected_return", { precision: 15, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  walletAddress: text("wallet_address").notNull(),
+  txHash: text("tx_hash"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const platformSettings = pgTable("platform_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -112,6 +138,23 @@ export const insertConversationSchema = createInsertSchema(conversations).pick({
   subject: true,
 });
 
+export const insertStakeSchema = createInsertSchema(stakes).pick({
+  userId: true,
+  amount: true,
+  currency: true,
+  network: true,
+  periodDays: true,
+  roiPercent: true,
+  expectedReturn: true,
+  walletAddress: true,
+  txHash: true,
+});
+
+export const insertPlatformSettingSchema = createInsertSchema(platformSettings).pick({
+  key: true,
+  value: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertInvestment = z.infer<typeof insertInvestmentSchema>;
@@ -124,3 +167,7 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Conversation = typeof conversations.$inferSelect;
+export type InsertStake = z.infer<typeof insertStakeSchema>;
+export type Stake = typeof stakes.$inferSelect;
+export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
+export type PlatformSetting = typeof platformSettings.$inferSelect;

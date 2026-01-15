@@ -5,6 +5,8 @@ import {
   withdrawals,
   chatMessages,
   conversations,
+  stakes,
+  platformSettings,
   type User,
   type InsertUser,
   type Investment,
@@ -17,6 +19,10 @@ import {
   type InsertChatMessage,
   type Conversation,
   type InsertConversation,
+  type Stake,
+  type InsertStake,
+  type PlatformSetting,
+  type InsertPlatformSetting,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -47,6 +53,15 @@ export interface IStorage {
 
   getMessagesByConversationId(conversationId: string): Promise<ChatMessage[]>;
   createMessage(message: InsertChatMessage): Promise<ChatMessage>;
+
+  getStakesByUserId(userId: string): Promise<Stake[]>;
+  getAllStakes(): Promise<Stake[]>;
+  createStake(stake: InsertStake): Promise<Stake>;
+  updateStake(id: string, data: Partial<Stake>): Promise<Stake | undefined>;
+
+  getPlatformSetting(key: string): Promise<PlatformSetting | undefined>;
+  setPlatformSetting(key: string, value: string): Promise<PlatformSetting>;
+  getAllPlatformSettings(): Promise<PlatformSetting[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -165,6 +180,49 @@ export class DatabaseStorage implements IStorage {
     await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, message.conversationId));
     
     return msg;
+  }
+
+  async getStakesByUserId(userId: string): Promise<Stake[]> {
+    return db.select().from(stakes).where(eq(stakes.userId, userId)).orderBy(desc(stakes.createdAt));
+  }
+
+  async getAllStakes(): Promise<Stake[]> {
+    return db.select().from(stakes).orderBy(desc(stakes.createdAt));
+  }
+
+  async createStake(stake: InsertStake): Promise<Stake> {
+    const [s] = await db.insert(stakes).values({
+      ...stake,
+      status: "pending",
+    }).returning();
+    return s;
+  }
+
+  async updateStake(id: string, data: Partial<Stake>): Promise<Stake | undefined> {
+    const [s] = await db.update(stakes).set(data).where(eq(stakes.id, id)).returning();
+    return s || undefined;
+  }
+
+  async getPlatformSetting(key: string): Promise<PlatformSetting | undefined> {
+    const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, key));
+    return setting || undefined;
+  }
+
+  async setPlatformSetting(key: string, value: string): Promise<PlatformSetting> {
+    const existing = await this.getPlatformSetting(key);
+    if (existing) {
+      const [updated] = await db.update(platformSettings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(platformSettings.key, key))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(platformSettings).values({ key, value }).returning();
+    return created;
+  }
+
+  async getAllPlatformSettings(): Promise<PlatformSetting[]> {
+    return db.select().from(platformSettings);
   }
 }
 

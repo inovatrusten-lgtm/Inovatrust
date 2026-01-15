@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare, FileText, CheckCircle2, Mail, Hash, ArrowLeftRight, DollarSign, Share2 } from "lucide-react";
+import { ArrowDownToLine, Loader2, Wallet, Bitcoin, CreditCard, MessageSquare, FileText } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +13,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { ChatWidget } from "@/components/chat-widget";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +45,6 @@ const statusColors: Record<string, string> = {
 export default function WithdrawalPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [receiptWithdrawal, setReceiptWithdrawal] = useState<Withdrawal | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -309,16 +307,17 @@ export default function WithdrawalPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {withdrawal.status === "approved" && withdrawal.invoiceNumber && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setReceiptWithdrawal(withdrawal)}
-                            data-testid={`button-receipt-${withdrawal.id}`}
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            Receipt
-                          </Button>
+                        {withdrawal.status === "approved" && (
+                          <Link href={`/receipt/${withdrawal.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              data-testid={`button-receipt-${withdrawal.id}`}
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              Receipt
+                            </Button>
+                          </Link>
                         )}
                         {withdrawal.conversationId && (
                           <Button
@@ -346,115 +345,6 @@ export default function WithdrawalPage() {
           conversationId={activeConversationId}
         />
       )}
-
-      <Dialog open={!!receiptWithdrawal} onOpenChange={(open) => !open && setReceiptWithdrawal(null)}>
-        <DialogContent className="max-w-md bg-[#0a0a0a] border-[#262626]">
-          {receiptWithdrawal && (
-            <div className="space-y-6">
-              <div className="text-muted-foreground">
-                {receiptWithdrawal.processedAt 
-                  ? format(new Date(receiptWithdrawal.processedAt), "EEEE, MMMM d")
-                  : format(new Date(), "EEEE, MMMM d")
-                }
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-red-600/20 border border-red-600/50 flex items-center justify-center">
-                    <Wallet className="h-5 w-5 text-red-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-white">Withdrawal</div>
-                    <div className="text-sm text-muted-foreground">
-                      {receiptWithdrawal.processedAt 
-                        ? format(new Date(receiptWithdrawal.processedAt), "h:mm a · MMM d, yyyy")
-                        : "-"
-                      }
-                    </div>
-                  </div>
-                </div>
-                <div className="text-xl font-bold text-red-500">
-                  -${parseFloat(receiptWithdrawal.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </div>
-              </div>
-
-              <Separator className="bg-[#262626]" />
-
-              <div className="space-y-5">
-                <div className="flex items-start gap-3">
-                  <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-sm text-red-500">Code</div>
-                    <div className="text-white font-mono">{receiptWithdrawal.invoiceNumber || "-"}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <ArrowLeftRight className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-sm text-red-500">Origin</div>
-                    <div className="text-white">Earnings</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Wallet className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-red-500">Wallet</div>
-                    <div className="text-white font-mono text-sm break-all">{receiptWithdrawal.walletAddress}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-sm text-red-500">Currency</div>
-                    <div className="text-white">
-                      {receiptWithdrawal.method === "usdt_bep20" || receiptWithdrawal.method === "usdt_trc20" 
-                        ? "USDT" 
-                        : receiptWithdrawal.method === "bitcoin" 
-                          ? "BTC" 
-                          : receiptWithdrawal.method === "ethereum" 
-                            ? "ETH" 
-                            : "USD"
-                      }
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Share2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <div className="text-sm text-red-500">Network</div>
-                    <div className="text-white">
-                      {receiptWithdrawal.method === "usdt_bep20" 
-                        ? "BinanceSmartChain" 
-                        : receiptWithdrawal.method === "usdt_trc20" 
-                          ? "Tron" 
-                          : receiptWithdrawal.method === "bitcoin" 
-                            ? "Bitcoin" 
-                            : receiptWithdrawal.method === "ethereum" 
-                              ? "Ethereum" 
-                              : "Bank Network"
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {receiptWithdrawal.emailSentAt && (
-                <>
-                  <Separator className="bg-[#262626]" />
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span>Receipt sent to your email</span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

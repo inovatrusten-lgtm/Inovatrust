@@ -194,6 +194,20 @@ export async function registerRoutes(
     res.json(withdrawals);
   });
 
+  app.get("/api/withdrawals/:id", requireAuth, async (req, res) => {
+    const withdrawalId = req.params.id;
+    const userId = req.session.userId!;
+    
+    const withdrawals = await storage.getWithdrawalsByUserId(userId);
+    const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+    
+    if (!withdrawal) {
+      return res.status(404).send("Withdrawal not found");
+    }
+    
+    res.json(withdrawal);
+  });
+
   app.post("/api/withdrawals", requireAuth, async (req, res) => {
     try {
       const { amount, method, walletAddress } = req.body;

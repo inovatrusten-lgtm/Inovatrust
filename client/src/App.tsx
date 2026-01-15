@@ -15,6 +15,7 @@ import DashboardPage from "@/pages/dashboard";
 import InvestmentsPage from "@/pages/investments";
 import TransactionsPage from "@/pages/transactions";
 import WithdrawalPage from "@/pages/withdrawal";
+import ReceiptPage from "@/pages/receipt";
 import ChatPage from "@/pages/chat";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
@@ -26,6 +27,7 @@ function AuthenticatedRouter() {
       <Route path="/investments" component={InvestmentsPage} />
       <Route path="/transactions" component={TransactionsPage} />
       <Route path="/withdrawal" component={WithdrawalPage} />
+      <Route path="/receipt/:id" component={ReceiptPage} />
       <Route path="/chat" component={ChatPage} />
       <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />

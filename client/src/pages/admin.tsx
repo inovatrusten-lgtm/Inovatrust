@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock, Edit2, DollarSign, Save } from "lucide-react";
+import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock, Edit2, DollarSign, Save, Coins, Settings, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,18 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Withdrawal, Conversation, ChatMessage, User } from "@shared/schema";
+import type { Withdrawal, Conversation, ChatMessage, User, Stake, PlatformSetting } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
 
 interface WithdrawalWithUser extends Withdrawal {
   user?: User;
 }
 
 interface ConversationWithUser extends Conversation {
+  user?: User;
+}
+
+interface StakeWithUser extends Stake {
   user?: User;
 }
 
@@ -35,6 +40,8 @@ export default function AdminPage() {
   const [editBalance, setEditBalance] = useState("");
   const [editTotalInvested, setEditTotalInvested] = useState("");
   const [editTotalEarnings, setEditTotalEarnings] = useState("");
+  const [bep20Address, setBep20Address] = useState("");
+  const [erc20Address, setErc20Address] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { user, isAdmin } = useAuth();
@@ -54,6 +61,25 @@ export default function AdminPage() {
     queryKey: ["/api/admin/users"],
     enabled: isAdmin,
   });
+
+  const { data: stakes, isLoading: stakesLoading } = useQuery<StakeWithUser[]>({
+    queryKey: ["/api/admin/stakes"],
+    enabled: isAdmin,
+  });
+
+  const { data: settings } = useQuery<PlatformSetting[]>({
+    queryKey: ["/api/admin/settings"],
+    enabled: isAdmin,
+  });
+
+  useEffect(() => {
+    if (settings) {
+      const bep20 = settings.find(s => s.key === "receiving_wallet_bep20");
+      const erc20 = settings.find(s => s.key === "receiving_wallet_erc20");
+      if (bep20) setBep20Address(bep20.value);
+      if (erc20) setErc20Address(erc20.value);
+    }
+  }, [settings]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -157,6 +183,38 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "User Updated", description: "User balance has been updated successfully." });
       setEditingUser(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const enableStaking = useMutation({
+    mutationFn: async ({ userId, enabled, conversationId }: { userId: string; enabled: boolean; conversationId?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/enable-staking`, { enabled, conversationId });
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ 
+        title: variables.enabled ? "Staking Enabled" : "Staking Disabled", 
+        description: `User staking access has been ${variables.enabled ? "enabled" : "disabled"}.` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const saveSetting = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      const res = await apiRequest("POST", "/api/admin/settings", { key, value });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staking/receiving-addresses"] });
+      toast({ title: "Settings Saved", description: "Receiving address has been updated." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -269,6 +327,14 @@ export default function AdminPage() {
           <TabsTrigger value="users" data-testid="tab-users">
             <Users className="h-4 w-4 mr-2" />
             Manage Users
+          </TabsTrigger>
+          <TabsTrigger value="staking" data-testid="tab-staking">
+            <Coins className="h-4 w-4 mr-2" />
+            Staking
+          </TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -606,6 +672,198 @@ export default function AdminPage() {
                   <p className="text-muted-foreground">No users registered yet</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="staking">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Staking Access</CardTitle>
+                <CardDescription>Enable or disable staking for users. When enabled, users can access InovaTrust Loop.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Connected Wallet</TableHead>
+                      <TableHead>Staking Enabled</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users?.filter(u => !u.isAdmin).map((u) => (
+                      <TableRow key={u.id} data-testid={`staking-user-row-${u.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {u.fullName?.slice(0, 2).toUpperCase() || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{u.fullName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                        <TableCell>
+                          {u.connectedWallet ? (
+                            <span className="font-mono text-xs">
+                              {u.connectedWallet.slice(0, 6)}...{u.connectedWallet.slice(-4)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Not connected</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={u.stakingEnabled || false}
+                            onCheckedChange={(checked) => {
+                              const userConv = conversations?.find(c => c.userId === u.id);
+                              enableStaking.mutate({ 
+                                userId: u.id, 
+                                enabled: checked,
+                                conversationId: userConv?.id
+                              });
+                            }}
+                            disabled={enableStaking.isPending}
+                            data-testid={`switch-staking-${u.id}`}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Stakes</CardTitle>
+                <CardDescription>View all user stakes</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {stakesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : stakes && stakes.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead>Expected Return</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stakes.map((stake) => (
+                        <TableRow key={stake.id} data-testid={`admin-stake-row-${stake.id}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs">
+                                  {stake.user?.fullName?.slice(0, 2).toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{stake.user?.fullName || "Unknown"}</p>
+                                <p className="text-xs text-muted-foreground">{stake.user?.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {parseFloat(stake.amount).toLocaleString()} {stake.currency}
+                          </TableCell>
+                          <TableCell>{stake.periodDays} days</TableCell>
+                          <TableCell className="text-accent font-semibold">
+                            {parseFloat(stake.expectedReturn).toLocaleString()} {stake.currency}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={cn(
+                              stake.status === "pending" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+                              stake.status === "active" && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                              stake.status === "completed" && "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                            )}>
+                              {stake.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {stake.createdAt ? format(new Date(stake.createdAt), "MMM dd, yyyy") : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-12">
+                    <Coins className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No stakes yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                Receiving Wallet Addresses
+              </CardTitle>
+              <CardDescription>
+                Configure wallet addresses where staking payments will be received.
+                Users will send their stake payments to these addresses.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="bep20">BEP20 Receiving Address (BNB Smart Chain)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="bep20"
+                    placeholder="0x..."
+                    value={bep20Address}
+                    onChange={(e) => setBep20Address(e.target.value)}
+                    className="font-mono"
+                    data-testid="input-bep20-address"
+                  />
+                  <Button 
+                    onClick={() => saveSetting.mutate({ key: "receiving_wallet_bep20", value: bep20Address })}
+                    disabled={saveSetting.isPending}
+                    data-testid="button-save-bep20"
+                  >
+                    {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="erc20">ERC20 Receiving Address (Ethereum)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="erc20"
+                    placeholder="0x..."
+                    value={erc20Address}
+                    onChange={(e) => setErc20Address(e.target.value)}
+                    className="font-mono"
+                    data-testid="input-erc20-address"
+                  />
+                  <Button 
+                    onClick={() => saveSetting.mutate({ key: "receiving_wallet_erc20", value: erc20Address })}
+                    disabled={saveSetting.isPending}
+                    data-testid="button-save-erc20"
+                  >
+                    {saveSetting.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

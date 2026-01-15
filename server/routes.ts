@@ -7,6 +7,15 @@ import { storage } from "./storage";
 
 const SALT_ROUNDS = 10;
 
+function generateInvoiceNumber(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `INV-${year}${month}${day}-${random}`;
+}
+
 declare module "express-session" {
   interface SessionData {
     userId: string;
@@ -337,6 +346,8 @@ export async function registerRoutes(
         return res.status(404).send("Withdrawal not found");
       }
 
+      let invoiceNumber: string | undefined;
+      
       if (status === "approved") {
         const user = await storage.getUser(withdrawal.userId);
         if (user) {
@@ -352,12 +363,18 @@ export async function registerRoutes(
             amount: withdrawal.amount,
             description: `Withdrawal via ${withdrawal.method} - Approved`,
           });
+          
+          invoiceNumber = generateInvoiceNumber();
         }
       }
 
       const updated = await storage.updateWithdrawal(withdrawalId, {
         status,
         processedAt: new Date(),
+        ...(invoiceNumber && { 
+          invoiceNumber, 
+          invoiceGeneratedAt: new Date() 
+        }),
       });
 
       if (withdrawal.conversationId) {

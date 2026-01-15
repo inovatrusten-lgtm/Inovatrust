@@ -97,7 +97,11 @@ export default function AdminPage() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "message") {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          const exists = prev.some(m => m.id === data.message.id);
+          if (exists) return prev;
+          return [...prev, data.message];
+        });
       }
     };
 
@@ -121,8 +125,6 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        const message = await res.json();
-        setMessages((prev) => [...prev, message]);
         setNewMessage("");
       }
     } catch (error) {

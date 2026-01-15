@@ -9,6 +9,7 @@ import {
   Shield,
   LogOut,
   Star,
+  Coins,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/button";
 const mainMenuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Investments", url: "/investments", icon: TrendingUp },
+  { title: "InovaTrust Loop", url: "/staking", icon: Coins },
   { title: "Transactions", url: "/transactions", icon: History },
   { title: "Withdrawal", url: "/withdrawal", icon: ArrowDownToLine },
   { title: "Support Chat", url: "/chat", icon: MessageSquare },

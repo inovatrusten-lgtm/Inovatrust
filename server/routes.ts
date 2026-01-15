@@ -582,6 +582,32 @@ export async function registerRoutes(
     });
   });
 
+  app.post("/api/stakes/:id/request-withdrawal", requireAuth, async (req, res) => {
+    try {
+      const stakeId = req.params.id;
+      const userId = req.session.userId!;
+
+      const stake = await storage.getStake(stakeId);
+      if (!stake) {
+        return res.status(404).send("Stake not found");
+      }
+      if (stake.userId !== userId) {
+        return res.status(403).send("Unauthorized");
+      }
+      if (stake.status !== "active") {
+        return res.status(400).send("Stake is not active");
+      }
+      if (!stake.endDate || new Date(stake.endDate) > new Date()) {
+        return res.status(400).send("Stake has not matured yet");
+      }
+
+      const updated = await storage.updateStake(stakeId, { status: "withdrawal_pending" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).send(error.message);
+    }
+  });
+
   app.get("/api/admin/stakes", requireAdmin, async (req, res) => {
     const allStakes = await storage.getAllStakes();
     const users = await storage.getAllUsers();

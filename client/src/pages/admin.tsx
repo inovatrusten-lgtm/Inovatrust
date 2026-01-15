@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock, Edit2, DollarSign, Save, Coins, Settings, Wallet } from "lucide-react";
+import { Send, Loader2, MessageSquare, Check, X, Users, ArrowDownToLine, Clock, Edit2, DollarSign, Save, Coins, Settings, Wallet, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,20 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staking/receiving-addresses"] });
       toast({ title: "Settings Saved", description: "Receiving address has been updated." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const approveStakeWithdrawal = useMutation({
+    mutationFn: async (stakeId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/stakes/${stakeId}`, { status: "completed" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stakes"] });
+      toast({ title: "Withdrawal Approved", description: "The stake withdrawal has been approved." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -758,6 +772,7 @@ export default function AdminPage() {
                         <TableHead>Expected Return</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -787,13 +802,37 @@ export default function AdminPage() {
                             <Badge variant="secondary" className={cn(
                               stake.status === "pending" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
                               stake.status === "active" && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                              stake.status === "withdrawal_pending" && "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
                               stake.status === "completed" && "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
                             )}>
-                              {stake.status}
+                              {stake.status === "withdrawal_pending" ? "Withdrawal Pending" : stake.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {stake.createdAt ? format(new Date(stake.createdAt), "MMM dd, yyyy") : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {stake.status === "withdrawal_pending" ? (
+                              <Button
+                                size="sm"
+                                onClick={() => approveStakeWithdrawal.mutate(stake.id)}
+                                disabled={approveStakeWithdrawal.isPending}
+                                data-testid={`button-approve-stake-${stake.id}`}
+                              >
+                                {approveStakeWithdrawal.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                            ) : stake.status === "completed" ? (
+                              <span className="text-accent text-sm">Completed</span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

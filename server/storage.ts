@@ -54,6 +54,7 @@ export interface IStorage {
   getMessagesByConversationId(conversationId: string): Promise<ChatMessage[]>;
   createMessage(message: InsertChatMessage): Promise<ChatMessage>;
 
+  getStake(id: string): Promise<Stake | undefined>;
   getStakesByUserId(userId: string): Promise<Stake[]>;
   getAllStakes(): Promise<Stake[]>;
   createStake(stake: InsertStake): Promise<Stake>;
@@ -180,6 +181,11 @@ export class DatabaseStorage implements IStorage {
     await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, message.conversationId));
     
     return msg;
+  }
+
+  async getStake(id: string): Promise<Stake | undefined> {
+    const [stake] = await db.select().from(stakes).where(eq(stakes.id, id));
+    return stake || undefined;
   }
 
   async getStakesByUserId(userId: string): Promise<Stake[]> {

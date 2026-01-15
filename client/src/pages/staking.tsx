@@ -55,9 +55,53 @@ interface ReceivingAddresses {
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  matured: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  withdrawal_pending: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   completed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
+
+function CountdownTimer({ endDate }: { endDate: Date }) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const end = new Date(endDate).getTime();
+      const difference = end - now;
+
+      if (difference <= 0) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+      }
+
+      return {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((difference % (1000 * 60)) / 1000),
+        expired: false,
+      };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [endDate]);
+
+  if (timeLeft.expired) {
+    return <span className="text-accent font-semibold">Matured</span>;
+  }
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    <span className="font-mono text-sm">
+      {pad(timeLeft.days)}:{pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
+    </span>
+  );
+}
 
 export default function StakingPage() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -118,6 +162,26 @@ export default function StakingPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to create stake",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const requestWithdrawalMutation = useMutation({
+    mutationFn: async (stakeId: string) => {
+      return apiRequest("POST", `/api/stakes/${stakeId}/request-withdrawal`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stakes"] });
+      toast({
+        title: "Withdrawal Requested",
+        description: "Your withdrawal request has been submitted for admin approval.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to request withdrawal",
         variant: "destructive",
       });
     },
@@ -499,35 +563,73 @@ export default function StakingPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Amount</TableHead>
-                      <TableHead>Period</TableHead>
+                      <TableHead>Time Remaining</TableHead>
                       <TableHead>ROI</TableHead>
                       <TableHead>Expected Return</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stakes.map((stake) => (
-                      <TableRow key={stake.id} data-testid={`row-stake-${stake.id}`}>
-                        <TableCell>
-                          {stake.createdAt ? format(new Date(stake.createdAt), "MMM dd, yyyy") : "-"}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {parseFloat(stake.amount).toLocaleString()} {stake.currency}
-                        </TableCell>
-                        <TableCell>{stake.periodDays} days</TableCell>
-                        <TableCell className="text-primary font-medium">
-                          +{stake.roiPercent}%
-                        </TableCell>
-                        <TableCell className="text-accent font-semibold">
-                          {parseFloat(stake.expectedReturn).toLocaleString()} {stake.currency}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={statusColors[stake.status]}>
-                            {stake.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {stakes.map((stake) => {
+                      const isMatured = stake.endDate && new Date(stake.endDate) <= new Date();
+                      const canRequestWithdrawal = stake.status === "active" && isMatured;
+                      
+                      return (
+                        <TableRow key={stake.id} data-testid={`row-stake-${stake.id}`}>
+                          <TableCell>
+                            {stake.createdAt ? format(new Date(stake.createdAt), "MMM dd, yyyy") : "-"}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {parseFloat(stake.amount).toLocaleString()} {stake.currency}
+                          </TableCell>
+                          <TableCell>
+                            {stake.status === "active" && stake.endDate ? (
+                              <CountdownTimer endDate={new Date(stake.endDate)} />
+                            ) : stake.status === "withdrawal_pending" ? (
+                              <span className="text-muted-foreground">Awaiting approval</span>
+                            ) : stake.status === "completed" ? (
+                              <span className="text-accent">Withdrawn</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-primary font-medium">
+                            +{stake.roiPercent}%
+                          </TableCell>
+                          <TableCell className="text-accent font-semibold">
+                            {parseFloat(stake.expectedReturn).toLocaleString()} {stake.currency}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={statusColors[canRequestWithdrawal ? "matured" : stake.status]}>
+                              {canRequestWithdrawal ? "matured" : stake.status === "withdrawal_pending" ? "pending approval" : stake.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {canRequestWithdrawal ? (
+                              <Button
+                                size="sm"
+                                onClick={() => requestWithdrawalMutation.mutate(stake.id)}
+                                disabled={requestWithdrawalMutation.isPending}
+                                data-testid={`button-request-withdrawal-${stake.id}`}
+                              >
+                                {requestWithdrawalMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Request Withdrawal"
+                                )}
+                              </Button>
+                            ) : stake.status === "withdrawal_pending" ? (
+                              <span className="text-sm text-muted-foreground">Pending</span>
+                            ) : stake.status === "completed" ? (
+                              <CheckCircle2 className="h-4 w-4 text-accent" />
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Locked</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (

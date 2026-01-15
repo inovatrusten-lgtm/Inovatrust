@@ -14,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { WithdrawalNotice } from "@/components/withdrawal-notice";
 import { ChatWidget } from "@/components/chat-widget";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -114,8 +113,6 @@ export default function WithdrawalPage() {
         <h1 className="text-3xl font-bold">Withdrawal</h1>
         <p className="text-muted-foreground">Request a withdrawal from your account</p>
       </div>
-
-      <WithdrawalNotice />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

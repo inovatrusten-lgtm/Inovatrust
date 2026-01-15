@@ -1,147 +1,88 @@
-# Design Guidelines: Financial Investment Platform with Admin Chat
+# InovaTrust Design Guidelines
 
-## Design Approach: Reference-Based (Financial Services)
+## Brand Identity
+- **Logo**: Orange filled star icon with "INOVATRUST" text in white uppercase
+- **Style**: Dark, modern cryptocurrency/fintech aesthetic matching inovatrust.net
 
-**Primary References:** Coinbase, Robinhood, Wise (TransferWise)
-**Rationale:** Professional financial platforms that balance trust, clarity, and user-friendly transaction flows
+## Color Palette
 
-## Core Design Principles
+### Primary Colors (CSS Variables in index.css)
+- **Background**: Near-black (hsl 0 0% 4%) - creates immersive dark experience
+- **Card Background**: Dark gray (hsl 0 0% 10%) - subtle elevation from background
+- **Primary (Orange)**: hsl(24, 95%, 53%) - used for logo star, key values, action buttons, borders
+- **Accent (Green)**: hsl(142, 71%, 45%) - used for positive values, gains, success states
 
-1. **Trust & Credibility:** Clean, professional aesthetic with clear hierarchy
-2. **Transaction Clarity:** Every withdrawal step is explicit and traceable
-3. **Real-time Communication:** Integrated chat feels native, not bolted-on
-4. **Data Transparency:** Dashboard-first approach showing balances, history, status
+### Text Colors
+- **Foreground**: Very light gray (hsl 0 0% 95%)
+- **Muted**: Medium gray (hsl 0 0% 55%) for secondary text
+- **Primary colored text**: Use primary color for important values
+
+### Semantic Colors
+- **Success/Positive**: Green (--accent) - gains, increases, successful actions
+- **Error/Destructive**: Red (hsl 0 84% 45%) - losses, decreases, errors
+- **Warning/Primary**: Orange (--primary) - alerts, important notices
 
 ## Typography
 
 **Font Families:**
 - Primary: Inter (UI, body text, data)
-- Accent: SF Pro Display (headings, financial figures)
+- Fallback: Open Sans, system fonts
 
 **Scale:**
-- Headings: text-3xl to text-5xl, font-semibold
-- Subheadings: text-xl, font-medium
-- Body: text-base, font-normal
+- Headings: text-3xl, font-bold
+- Subheadings: text-xl, font-semibold
+- Body: text-base
 - Financial Data: text-2xl to text-4xl, font-bold, tabular-nums
-- Labels: text-sm, font-medium, uppercase tracking-wide
+- Labels: text-sm, text-muted-foreground
+
+## Component Styling
+
+### Cards
+- Dark gray background (bg-card)
+- Subtle border (border-card-border)
+- Investment cards have orange border (border-primary) for highlight
+- Rounded corners (rounded-md)
+
+### Buttons
+- Primary: Orange background (bg-primary) with white text
+- Secondary: Dark background with visible border
+- Ghost: Transparent with hover-elevate effect
+- Outline: Visible border with transparent background
+
+### Sidebar
+- Very dark background (bg-sidebar: hsl 0 0% 3%)
+- Orange star logo with white "INOVATRUST" text
+- Menu items with hover-elevate effect
+- Active item highlighted with sidebar-accent
+
+### Status Badges
+- Active: Green background
+- Pending: Yellow/Orange
+- Completed: Blue
+- Cancelled/Error: Red
+
+### Progress Bars
+- Green fill for progress indicators
+- Dark background track
 
 ## Layout System
 
-**Spacing Units:** Tailwind 4, 6, 8, 12, 16, 24 (p-4, mb-6, gap-8, etc.)
+**Spacing:** Tailwind default spacing (4, 6, 8 for gaps/padding)
 
 **Grid Structure:**
-- Dashboard: Sidebar (w-64) + Main content area
-- Mobile: Single column stack, hamburger menu
-- Cards: Consistent p-6 spacing, rounded-xl borders
+- Sidebar navigation (w-64 default)
+- Main content with responsive grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-4)
+- Cards with consistent p-6 padding
 
-## Component Library
+## Key Features
 
-### Navigation
-- Fixed top bar with logo, main nav, user avatar/balance
-- Sidebar navigation for dashboard sections (Overview, Transactions, Withdrawal, Chat)
-- Mobile: Collapsible bottom nav + slide-out menu
-
-### Dashboard Cards
-- Balance card: Large prominent display with currency symbol
-- Quick actions: Grid of 2x2 action buttons (Deposit, Withdraw, Transfer, History)
-- Transaction history: Table with date, type, amount, status badges
-- Account summary: Stats grid showing total invested, returns, pending
-
-### Withdrawal Flow
-**Multi-step process:**
-1. **Notice Screen:** Alert banner explaining withdrawal process, estimated time
-2. **Amount Input:** Large numeric input with balance display, conversion rates
-3. **Verification:** Security questions, 2FA code input
-4. **Admin Review:** Status card showing "Pending Admin Approval" with chat prompt
-5. **Confirmation:** Success state with transaction ID, estimated completion
-
-### Admin Chat Component
-**Placement:** Persistent floating button (bottom-right), expandable panel
-
-**Chat Interface:**
-- Header: "Admin Support" with online status indicator
-- Message list: Alternating sender/receiver bubbles with timestamps
-- Input area: Text field + send button, file upload capability
-- System messages: Centered, gray text for status updates ("Admin typing...", "Request submitted")
-- Transaction context: Embedded card showing withdrawal details when chatting about specific request
-
-**States:**
-- Collapsed: Floating icon with notification badge
-- Expanded: 400px width panel, max-h-[600px] scrollable
-- Mobile: Full-screen overlay when active
-
-### Forms & Inputs
-- Large touch targets (min-h-12)
-- Clear labels above inputs
-- Helper text below for guidance
-- Error states with inline validation
-- Success states with checkmark icons
-
-### Status Indicators
-- Badge system: Pending (yellow), Approved (green), Rejected (red), Processing (blue)
-- Progress bars for multi-step processes
-- Loading states with skeleton screens
-
-### Data Tables
-- Striped rows for readability
-- Sortable columns with arrow indicators
-- Hover states showing additional details
-- Action buttons in final column
-- Responsive: Cards on mobile, table on desktop
-
-## Page Structures
-
-### Dashboard (Home)
-- Hero stats: Large balance display with growth percentage
-- 4-column quick stats grid
-- Recent transactions table (last 10)
-- Investment portfolio visualization
-- Quick withdrawal button with badge if pending
-
-### Withdrawal Page
-- Prominent withdrawal notice at top
-- Available balance card
-- Withdrawal form (amount, method, account details)
-- Fee breakdown display
-- Submit button triggering admin chat prompt
-- Withdrawal history list below
-
-### Chat/Support Page
-- Full-width chat interface (no sidebar distraction)
-- Persistent conversation history
-- File attachment preview
-- Quick replies for common questions
-- Transaction reference capability
-
-## Images
-
-**Hero Image:** NO large hero image. This is a dashboard-focused application.
-
-**Supporting Images:**
-- Security badges/trust seals in footer
-- Avatar placeholders for admin chat
-- Icon illustrations for empty states (no transactions, no messages)
-
-## Animations
-
-**Minimal & Purposeful:**
-- Smooth height transitions for expandable chat (transition-all duration-300)
-- Fade-in for notification toasts
-- Pulse animation for pending status badges
-- Gentle scale on button hover (hover:scale-105)
-
-## Critical Features
-
-1. **Live Chat Integration:** Real-time messaging with admin, typing indicators
-2. **Withdrawal Notice System:** Clear prominent alerts before withdrawal initiation
-3. **Transaction Tracking:** Every withdrawal has unique ID, visible status
-4. **Security Elements:** Verification steps clearly marked, lockdown indicators
-5. **Responsive Dashboard:** Full functionality on mobile with adapted layouts
+1. **Dark Theme Only**: Matches inovatrust.net dark aesthetic
+2. **Orange Star Branding**: Prominent logo with orange filled star
+3. **Green for Gains**: All positive values, percentages use green
+4. **Orange Highlights**: Investment cards, primary buttons, key values
+5. **Real-time Chat**: Integrated chat widget for admin-user communication
 
 ## Accessibility
-
-- ARIA labels for all interactive elements
-- Keyboard navigation for chat and forms
-- Screen reader announcements for status changes
-- High contrast for financial figures (WCAG AAA)
+- High contrast text on dark backgrounds
 - Focus indicators on all inputs
+- ARIA labels for interactive elements

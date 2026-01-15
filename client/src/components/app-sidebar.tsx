@@ -8,6 +8,7 @@ import {
   Settings,
   Shield,
   LogOut,
+  Star,
 } from "lucide-react";
 import {
   Sidebar,
@@ -54,12 +55,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[hsl(152,69%,40%)] text-white font-bold text-lg">
-            IT
-          </div>
+          <Star className="h-8 w-8 text-primary fill-primary" />
           <div>
-            <h1 className="font-semibold text-lg text-sidebar-foreground">InovaTrust</h1>
-            <p className="text-xs text-sidebar-foreground/70">Cryptocurrency Market</p>
+            <h1 className="font-semibold text-lg text-sidebar-foreground">INOVATRUST</h1>
           </div>
         </div>
       </SidebarHeader>

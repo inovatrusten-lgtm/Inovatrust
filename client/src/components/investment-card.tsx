@@ -28,9 +28,9 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
   }
 
   return (
-    <Card className="hover-elevate" data-testid={`card-investment-${investment.id}`}>
+    <Card className="hover-elevate border-primary" data-testid={`card-investment-${investment.id}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-        <CardTitle className="text-lg font-semibold">{investment.packageName}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-primary">{investment.packageName}</CardTitle>
         <Badge variant="secondary" className={statusColors[investment.status] || ""}>
           {investment.status}
         </Badge>

@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, Shield, Clock, Users } from "lucide-react";
+import { Loader2, TrendingUp, Shield, Clock, Users, Star } from "lucide-react";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -86,11 +86,8 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[hsl(152,69%,40%)] text-white font-bold text-xl mx-auto mb-4">
-              IT
-            </div>
-            <h1 className="text-3xl font-bold">InovaTrust</h1>
-            <p className="text-muted-foreground mt-2">Cryptocurrency Market</p>
+            <Star className="h-12 w-12 text-primary fill-primary mx-auto mb-4" />
+            <h1 className="text-3xl font-bold">INOVATRUST</h1>
           </div>
 
           <Card>

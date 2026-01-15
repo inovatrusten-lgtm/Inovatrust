@@ -30,11 +30,12 @@ import { Button } from "@/components/ui/button";
 const mainMenuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Investments", url: "/investments", icon: TrendingUp },
-  { title: "InovaTrust Loop", url: "/staking", icon: Coins },
   { title: "Transactions", url: "/transactions", icon: History },
   { title: "Withdrawal", url: "/withdrawal", icon: ArrowDownToLine },
   { title: "Support Chat", url: "/chat", icon: MessageSquare },
 ];
+
+const stakingMenuItem = { title: "InovaTrust Loop", url: "/staking", icon: Coins };
 
 const adminMenuItems = [
   { title: "Admin Panel", url: "/admin", icon: Shield },
@@ -42,7 +43,7 @@ const adminMenuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, stakingEnabled, logout } = useAuth();
 
   const getInitials = (name: string) => {
     return name
@@ -81,6 +82,19 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {stakingEnabled && (
+                <SidebarMenuItem key={stakingMenuItem.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === stakingMenuItem.url}
+                  >
+                    <Link href={stakingMenuItem.url} data-testid={`nav-${stakingMenuItem.title.toLowerCase().replace(" ", "-")}`}>
+                      <stakingMenuItem.icon className="h-4 w-4" />
+                      <span>{stakingMenuItem.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

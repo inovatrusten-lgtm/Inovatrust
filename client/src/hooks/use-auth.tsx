@@ -5,6 +5,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAdmin: boolean;
+  stakingEnabled: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (data: { username: string; password: string; fullName: string; email: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAdmin: user?.isAdmin ?? false, login, register, logout, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, isLoading, isAdmin: user?.isAdmin ?? false, stakingEnabled: user?.stakingEnabled ?? false, login, register, logout, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );

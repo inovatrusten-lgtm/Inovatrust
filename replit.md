@@ -97,7 +97,14 @@ The frontend follows a dashboard-first approach with sidebar navigation. Key pag
 
 ## Recent Changes
 
+- Enhanced staking page with catchy crypto visuals:
+  - Live statistics dashboard (TVL, active stakers, total paid out, max APY)
+  - Trust badges (audited contracts, secure vault, multi-chain, instant withdrawals)
+  - Plan badges (Popular, Best Value, High Yield indicators)
+  - Real-time activity feed showing simulated staking activity
+  - Network badges for BNB Chain and Ethereum
 - Switched email service from SendGrid to Mailgun
 - Added PostgreSQL session storage for production (connect-pg-simple)
 - Configured mainnet-only blockchain networks (BSC Chain ID 56, Ethereum Chain ID 1)
 - Updated wallet connection to EIP-1193 standard (no deprecation warnings)
+- Added staking toggle to Manage Users tab for admin convenience

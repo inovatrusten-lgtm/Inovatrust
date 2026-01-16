@@ -97,6 +97,11 @@ The frontend follows a dashboard-first approach with sidebar navigation. Key pag
 
 ## Recent Changes
 
+- Added live withdrawals feed to dashboard:
+  - Shows simulated global withdrawals with country flags (20 countries)
+  - Displays amounts, payment methods, and timestamps
+  - Auto-refreshes every 30 seconds
+  - Verified badge for trust
 - Enhanced staking page with catchy crypto visuals:
   - Live statistics dashboard (TVL, active stakers, total paid out, max APY)
   - Trust badges (audited contracts, secure vault, multi-chain, instant withdrawals)

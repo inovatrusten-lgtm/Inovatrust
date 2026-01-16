@@ -638,6 +638,7 @@ export default function AdminPage() {
                     <TableHead>Balance</TableHead>
                     <TableHead>Total Invested</TableHead>
                     <TableHead>Total Earnings</TableHead>
+                    <TableHead>Staking</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -666,6 +667,21 @@ export default function AdminPage() {
                       </TableCell>
                       <TableCell className="text-green-600">
                         ${parseFloat(u.totalEarnings || "0").toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={u.stakingEnabled || false}
+                          onCheckedChange={(checked) => {
+                            const userConv = conversations?.find(c => c.userId === u.id);
+                            enableStaking.mutate({ 
+                              userId: u.id, 
+                              enabled: checked,
+                              conversationId: userConv?.id
+                            });
+                          }}
+                          disabled={enableStaking.isPending}
+                          data-testid={`toggle-staking-${u.id}`}
+                        />
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">User</Badge>

@@ -35,8 +35,8 @@ const COUNTRIES = [
 ];
 
 const AMOUNTS = [
-  1250, 2500, 3750, 5000, 7500, 10000, 12500, 15000, 
-  17500, 20000, 25000, 30000, 35000, 42000, 50000, 75000
+  12.50, 18.75, 25.00, 32.50, 37.80, 42.15, 45.99, 48.50,
+  15.25, 22.40, 28.90, 35.60, 39.99, 44.25, 47.80, 49.95
 ];
 
 function generateRandomWithdrawal() {
@@ -49,11 +49,11 @@ function generateRandomWithdrawal() {
 
 function LiveWithdrawalsFeed() {
   const [withdrawals, setWithdrawals] = useState(() => [
-    { country: COUNTRIES[0], amount: 15000, method: "USDT (BEP20)", time: "2 min ago" },
-    { country: COUNTRIES[3], amount: 7500, method: "USDC (ERC20)", time: "5 min ago" },
-    { country: COUNTRIES[7], amount: 25000, method: "USDT (ERC20)", time: "8 min ago" },
-    { country: COUNTRIES[2], amount: 12500, method: "USDT (BEP20)", time: "12 min ago" },
-    { country: COUNTRIES[5], amount: 50000, method: "USDC (BEP20)", time: "15 min ago" },
+    { country: COUNTRIES[0], amount: 42.15, method: "USDT (BEP20)", time: "2 min ago" },
+    { country: COUNTRIES[3], amount: 28.90, method: "USDC (ERC20)", time: "5 min ago" },
+    { country: COUNTRIES[7], amount: 35.60, method: "USDT (ERC20)", time: "8 min ago" },
+    { country: COUNTRIES[2], amount: 18.75, method: "USDT (BEP20)", time: "12 min ago" },
+    { country: COUNTRIES[5], amount: 47.80, method: "USDC (BEP20)", time: "15 min ago" },
   ]);
 
   useEffect(() => {

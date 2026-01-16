@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, TrendingUp, ArrowUpRight, PiggyBank, Loader2, CheckCircle2, DollarSign } from "lucide-react";
+import { Wallet, TrendingUp, ArrowUpRight, PiggyBank, Loader2, CheckCircle2, DollarSign, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +35,16 @@ const COUNTRIES = [
 ];
 
 const AMOUNTS = [
-  12.50, 18.75, 25.00, 32.50, 37.80, 42.15, 45.99, 48.50,
-  15.25, 22.40, 28.90, 35.60, 39.99, 44.25, 47.80, 49.95
+  12.50, 18.75, 25.00, 32.50, 45.99, 78.50, 125.00, 250.00,
+  485.75, 750.00, 1250.00, 2500.00, 5000.00, 12500.00, 35000.00, 75000.00
 ];
+
+const EXPLORER_LINKS = {
+  "USDT (BEP20)": "https://bscscan.com/token/0x55d398326f99059ff775485246999027b3197955",
+  "USDC (BEP20)": "https://bscscan.com/token/0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+  "USDT (ERC20)": "https://etherscan.io/token/0xdac17f958d2ee523a2206206994597c13d831ec7",
+  "USDC (ERC20)": "https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+};
 
 function generateRandomWithdrawal() {
   const country = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
@@ -49,11 +56,11 @@ function generateRandomWithdrawal() {
 
 function LiveWithdrawalsFeed() {
   const [withdrawals, setWithdrawals] = useState(() => [
-    { country: COUNTRIES[0], amount: 42.15, method: "USDT (BEP20)", time: "2 min ago" },
-    { country: COUNTRIES[3], amount: 28.90, method: "USDC (ERC20)", time: "5 min ago" },
-    { country: COUNTRIES[7], amount: 35.60, method: "USDT (ERC20)", time: "8 min ago" },
-    { country: COUNTRIES[2], amount: 18.75, method: "USDT (BEP20)", time: "12 min ago" },
-    { country: COUNTRIES[5], amount: 47.80, method: "USDC (BEP20)", time: "15 min ago" },
+    { country: COUNTRIES[0], amount: 2500.00, method: "USDT (BEP20)", time: "2 min ago" },
+    { country: COUNTRIES[3], amount: 125.00, method: "USDC (ERC20)", time: "5 min ago" },
+    { country: COUNTRIES[7], amount: 35000.00, method: "USDT (ERC20)", time: "8 min ago" },
+    { country: COUNTRIES[2], amount: 45.99, method: "USDT (BEP20)", time: "12 min ago" },
+    { country: COUNTRIES[5], amount: 750.00, method: "USDC (BEP20)", time: "15 min ago" },
   ]);
 
   useEffect(() => {
@@ -115,7 +122,19 @@ function LiveWithdrawalsFeed() {
                 <p className="font-bold text-green-500">
                   ${withdrawal.amount.toLocaleString()}
                 </p>
-                <p className="text-xs text-muted-foreground">{withdrawal.time}</p>
+                <div className="flex items-center justify-end gap-2">
+                  <p className="text-xs text-muted-foreground">{withdrawal.time}</p>
+                  <a
+                    href={EXPLORER_LINKS[withdrawal.method as keyof typeof EXPLORER_LINKS]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                    data-testid={`verify-link-${index}`}
+                  >
+                    Verify
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
               </div>
             </div>
           ))}

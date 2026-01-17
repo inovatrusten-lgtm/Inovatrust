@@ -1,9 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import bcrypt from "bcrypt";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,7 +82,33 @@ app.use((req, res, next) => {
   next();
 });
 
+async function seedAdminUser() {
+  try {
+    const existingAdmin = await storage.getUserByUsername("admin");
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      await storage.createUser({
+        username: "admin",
+        password: hashedPassword,
+        fullName: "Administrator",
+        email: "admin@inovatrust.net",
+      });
+      // Update the user to be admin
+      const admin = await storage.getUserByUsername("admin");
+      if (admin) {
+        await storage.updateUser(admin.id, { isAdmin: true });
+        log("Admin user created successfully");
+      }
+    } else {
+      log("Admin user already exists");
+    }
+  } catch (error) {
+    log(`Error seeding admin user: ${error}`);
+  }
+}
+
 (async () => {
+  await seedAdminUser();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

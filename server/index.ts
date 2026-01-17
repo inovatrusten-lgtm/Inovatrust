@@ -10,6 +10,9 @@ import { storage } from "./storage";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust proxy for proper cookie handling behind Replit's reverse proxy
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -40,6 +43,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })
